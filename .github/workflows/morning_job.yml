@@ -2,8 +2,8 @@ name: MCP Morning Automation
 
 on:
   schedule:
-    - cron: '30 0 * * *'   # 6:00 AM IST (UTC based)
-  workflow_dispatch:       # manual run button
+    - cron: '30 0 * * *'   # 6:00 AM IST
+  workflow_dispatch:
 
 jobs:
   run-mcp:
@@ -20,14 +20,10 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install pandas requests || true
+        pip install -r requirements.txt
 
     - name: Run Daily Job
       run: python daily.py
 
     - name: Run App Logic
       run: python app1.py
-
-    # Uncomment ONLY if mcp_server.py is NOT a long-running server
-    # - name: Run MCP Server Script
-    #   run: python mcp_server.py
