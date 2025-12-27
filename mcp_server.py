@@ -4,38 +4,42 @@ from pydantic import BaseModel
 
 app = FastAPI(title="MCP Server")
 
-# Load CSVs once
-agreement = pd.read_csv("C:/Users/ANTHONY SAMY/Downloads/agreement_details.csv")
-product = pd.read_csv("C:/Users/ANTHONY SAMY/Downloads/product_details.csv")
-dealer = pd.read_csv("C:/Users/ANTHONY SAMY/Downloads/dealer_details.csv")
-employee = pd.read_csv("C:/Users/ANTHONY SAMY/Downloads/employee_details.csv")
-bounce = pd.read_csv("C:/Users/ANTHONY SAMY/Downloads/bounce_details.csv")
-payment = pd.read_csv("C:/Users/ANTHONY SAMY/Downloads/payment_details.csv")
+DATA_PATH = "data/"
 
-# Request model
+agreement = pd.read_csv(DATA_PATH + "agreement_details.csv")
+product = pd.read_csv(DATA_PATH + "product_details.csv")
+dealer = pd.read_csv(DATA_PATH + "dealer_details.csv")
+employee = pd.read_csv(DATA_PATH + "employee_details.csv")
+bounce = pd.read_csv(DATA_PATH + "bounce_details.csv")
+payment = pd.read_csv(DATA_PATH + "payment_details.csv")
+
 class AgreementQuery(BaseModel):
     agreement_no: int
 
-# MCP Endpoint: get master
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 @app.post("/get_master")
-def get_master(query: AgreementQuery):
-    a = agreement[agreement["agreement_no"] == query.agreement_no]
-    m = a.merge(product, on="product_id", how="left") \
-         .merge(dealer, on="dealer_id", how="left") \
+def get_master(q: AgreementQuery):
+    a = agreement[agreement["agreement_no"] == q.agreement_no]
+    m = (
+        a.merge(product, on="product_id", how="left")
+         .merge(dealer, on="dealer_id", how="left")
          .merge(employee, on="employee_id", how="left")
+    )
     return m.to_dict(orient="records")[0]
 
-# MCP Endpoint: get bounce count
 @app.post("/get_bounce")
-def get_bounce(query: AgreementQuery):
-    count = len(bounce[bounce["agreement_no"] == query.agreement_no])
-    return {"agreement_no": query.agreement_no, "bounce_count": count}
+def get_bounce(q: AgreementQuery):
+    return {
+        "agreement_no": q.agreement_no,
+        "bounce_count": len(bounce[bounce["agreement_no"] == q.agreement_no])
+    }
 
-# MCP Endpoint: get DPD
 @app.post("/get_dpd")
-def get_dpd(query: AgreementQuery):
-    row = payment[payment["agreement_no"] == query.agreement_no].iloc[0]
-    due = pd.to_datetime(row["due_date"])
-    paid = pd.to_datetime(row["payment_date"])
-    dpd = (paid - due).days
-    return {"agreement_no": query.agreement_no, "dpd": dpd}
+def get_dpd(q: AgreementQuery):
+    row = payment[payment["agreement_no"] == q.agreement_no].iloc[0]
+    dpd = (pd.to_datetime(row["payment_date"]) -
+           pd.to_datetime(row["due_date"])).days
+    return {"agreement_no": q.agreement_no, "dpd": dpd}
