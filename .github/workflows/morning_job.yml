@@ -2,7 +2,8 @@ name: MCP Morning Automation
 
 on:
   schedule:
-    - cron: '30 0 * * *'   # 6:00 AM IST
+    # 6:00 AM IST = 00:30 UTC
+    - cron: '30 0 * * *'
   workflow_dispatch:
 
 jobs:
@@ -10,20 +11,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
 
-    - name: Run Daily Job
-      run: python daily.py
+      # 1️⃣ Start API server
+      - name: Start MCP API
+        run: |
+          nohup python app1.py &
+        env:
+          PYTHONUNBUFFERED: 1
 
-    - name: Run App Logic
-      run: python app1.py
+      # 2️⃣ Wait for API to be ready
+      - name: Wait for API
+        run: |
+          echo "Waiting for API..."
+          for i in {1..20}; do
+            curl http://127.0.0.1:5000/health && break
+            sleep 5
+          done
+
+      # 3️⃣ Run Daily Job (uses API)
+      - name: Run Daily Job
+        run: |
+          python daily.py
