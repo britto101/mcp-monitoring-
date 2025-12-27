@@ -21,25 +21,29 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 1️⃣ Start API server
+      # 1️⃣ Start MCP API using Uvicorn (NO nohup)
       - name: Start MCP API
         run: |
-          nohup python app1.py &
+          uvicorn mcp_server:app --host 127.0.0.1 --port 8000 &
         env:
           PYTHONUNBUFFERED: 1
 
       # 2️⃣ Wait for API to be ready
       - name: Wait for API
         run: |
-          echo "Waiting for API..."
+          echo "Waiting for MCP API..."
           for i in {1..20}; do
-            curl http://127.0.0.1:5000/health && break
+            if curl -s http://127.0.0.1:8000/health; then
+              echo "API is up!"
+              break
+            fi
             sleep 5
           done
 
-      # 3️⃣ Run Daily Job (uses API)
+      # 3️⃣ Run Daily Job (calls MCP API)
       - name: Run Daily Job
         run: |
           python daily.py
